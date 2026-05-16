@@ -84,9 +84,11 @@
         <div class="flex-grow flex gap-4 min-h-0">
             
             <!-- 좌측: 컨트롤 및 주사위 (고정 너비) -->
-            <div class="w-[260px] flex flex-col gap-4 shrink-0">
+            <!-- 이 부분의 클래스에 justify-center를 추가하고 내부 래퍼를 제거하여 전체 요소가 중앙에 오도록 수정합니다. -->
+            <div class="w-[260px] flex flex-col justify-center gap-4 shrink-0">
+                
                 <!-- 1. 정보 및 현재 위치 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 shrink-0">
                     <div class="flex items-start gap-2 mb-4">
                         <i data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"></i>
                         <span id="message-text" class="text-sm font-bold text-slate-700 leading-tight">주사위를 굴려 시작하세요!</span>
@@ -98,7 +100,7 @@
                 </div>
 
                 <!-- 2. 주사위 영역 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center flex-grow">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center min-h-[280px]">
                     <div class="flex gap-4 mb-8" id="dice-wrapper">
                         <!-- 주사위 3개가 자바스크립트로 생성됩니다 -->
                     </div>
@@ -109,14 +111,15 @@
                 </div>
 
                 <!-- 3. 하단 컨트롤 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 shrink-0 space-y-2">
-                    <button id="play-full-btn" disabled class="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-slate-200 text-slate-400 cursor-not-allowed">
-                        <i data-lucide="play" class="w-4 h-4"></i> 곡 연주하기
+                <div class="bg-white rounded-[1.25rem] shadow-sm border border-slate-100 p-4 shrink-0 space-y-3">
+                    <button id="play-full-btn" disabled class="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-[#e2e8f0] cursor-not-allowed text-[15px]">
+                        <i data-lucide="play" class="w-5 h-5"></i> 곡 연주하기
                     </button>
-                    <button id="reset-btn" class="w-full py-2.5 flex justify-center items-center gap-1.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-colors font-semibold text-sm">
-                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 다시 시작
+                    <button id="reset-btn" class="w-full py-4 flex justify-center items-center gap-2 text-slate-600 bg-[#f8fafc] hover:bg-slate-100 rounded-xl transition-colors font-bold text-[15px]">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i> 다시 시작
                     </button>
                 </div>
+                
             </div>
 
             <!-- 중앙: 보드판 (남은 공간 모두 차지) -->
@@ -231,6 +234,8 @@
         let selectedInstrument = 'piano';
         let isPlaying = false;
         let synth = null;
+        let diceSynth = null;
+        let composeCount = 0; // 나만의 선율 만들기 진행 횟수 추적
         // 주사위의 누적 회전값을 저장하여 항상 앞으로 굴러가도록 처리
         let currentRotations = [{x:0, y:0}, {x:0, y:0}, {x:0, y:0}];
 
@@ -241,6 +246,7 @@
             createInstrumentButtons();
             createComposeSelects();
             updateSynth();
+            initDiceSynth();
             
             document.getElementById('roll-btn').addEventListener('click', rollDice);
             document.getElementById('play-full-btn').addEventListener('click', () => toggleModal('instrument-modal', true));
@@ -308,6 +314,36 @@
             Tone.Destination.volume.value = -5; // 약간 소리 줄임
         }
 
+        function initDiceSynth() {
+            // 플라스틱 주사위가 부딪히는 듯한 짧고 타격감 있는 소리 설정
+            diceSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "square" },
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
+            }).toDestination();
+            diceSynth.volume.value = -22; // 기존 -12에서 -22로 볼륨 대폭 감소
+        }
+
+        function startDiceSound() {
+            if(!diceSynth) initDiceSynth();
+            let clickCount = 0;
+            let timeBetweenClicks = 50; // 초기 클릭 간격 (빠르게)
+            
+            function playClick() {
+                if(!isRolling) return; // 굴러가는 상태가 끝나면 소리도 종료
+                
+                // 약간씩 다른 음높이로 부딪히는 느낌 연출
+                const notes = ["C5", "C#5", "D5", "D#5", "E5"];
+                const randomNote = notes[Math.floor(Math.random() * notes.length)];
+                diceSynth.triggerAttackRelease(randomNote, "32n");
+                
+                clickCount++;
+                timeBetweenClicks += 3; // 굴러갈수록 점점 느려지는 효과
+                
+                setTimeout(playClick, timeBetweenClicks);
+            }
+            playClick();
+        }
+
         function toggleModal(id, show) {
             document.getElementById(id).style.display = show ? 'flex' : 'none';
         }
@@ -326,6 +362,8 @@
             }
 
             isRolling = true;
+            startDiceSound(); // 주사위 굴러가는 효과음 시작
+
             const results = [Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1];
             
             results.forEach((val, i) => {
@@ -372,10 +410,19 @@
         }
 
         function handleArrival(cell) {
-            const data = MEASURE_DATA[cell];
+            let data = MEASURE_DATA[cell];
             if(!data) {
                 setMessage("빈 칸입니다.");
                 return;
+            }
+
+            // --- 나만의 선율 만들기 최소 2회 보장 로직 ---
+            const remainingSlots = 8 - composedMeasures.length;
+            const remainingComposesNeeded = 2 - composeCount;
+
+            // 일반 마디(Array)에 도착했을 때, 남은 칸 수 대비 작곡해야 할 횟수가 부족하면 강제로 COMPOSE(별표) 칸으로 변경합니다.
+            if (Array.isArray(data) && remainingSlots <= remainingComposesNeeded) {
+                data = { type: 'COMPOSE' };
             }
 
             if(Array.isArray(data)) {
@@ -421,6 +468,7 @@
             const measure = Array.from(selects).map(s => ({ note: s.value, duration: '4n' }));
             addMeasure(measure);
             playMeasure(measure);
+            composeCount++; // 선율 만들기 완료 시 횟수 1 증가
             toggleModal('compose-modal', false);
         }
 
@@ -461,7 +509,7 @@
             if(composedMeasures.length >= 8) {
                 const btn = document.getElementById('play-full-btn');
                 btn.disabled = false;
-                btn.className = "w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98]";
+                btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
             }
 
             composedMeasures.forEach((m, idx) => {
@@ -547,6 +595,7 @@
         function resetGame() {
             currentPosition = 0;
             composedMeasures = [];
+            composeCount = 0; // 초기화 시 작곡 횟수도 0으로 되돌리기
             skipTurn = false;
             document.getElementById('pos-display').innerText = "출발";
             document.getElementById('score-list').innerHTML = `
@@ -559,7 +608,7 @@
             setMessage("새로운 작곡을 시작합니다!");
             const btn = document.getElementById('play-full-btn');
             btn.disabled = true;
-            btn.className = "w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-slate-200 text-slate-400 cursor-not-allowed";
+            btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-[#e2e8f0] cursor-not-allowed text-[15px]";
         }
 
         window.onload = init;
