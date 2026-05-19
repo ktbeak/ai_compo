@@ -429,19 +429,50 @@
                 return;
             }
 
+            let wasDuplicateReplaced = false;
+
+            // --- 중복 멜로디 방지 로직 ---
+            if (Array.isArray(data)) {
+                // 현재 수집된 멜로디들과 정확히 동일한 노트 구성을 가졌는지 확인
+                const isDuplicate = composedMeasures.some(m => JSON.stringify(m) === JSON.stringify(data));
+                
+                if (isDuplicate) {
+                    // 전체 데이터 중에서 '배열' 형태인 기본 멜로디들만 필터링
+                    const allMelodies = Object.values(MEASURE_DATA).filter(val => Array.isArray(val));
+                    // 그 중에서 아직 내가 수집하지 않은 멜로디만 추려내기
+                    const uncollected = allMelodies.filter(mel => 
+                        !composedMeasures.some(m => JSON.stringify(m) === JSON.stringify(mel))
+                    );
+                    
+                    if (uncollected.length > 0) {
+                        // 수집하지 않은 멜로디 중 하나를 무작위로 선택하여 교체
+                        data = uncollected[Math.floor(Math.random() * uncollected.length)];
+                        wasDuplicateReplaced = true;
+                    } else {
+                        // 만약 모든 기본 멜로디를 수집했다면 강제로 '나만의 선율 만들기'로 변경
+                        data = { type: 'COMPOSE' };
+                    }
+                }
+            }
+
             // --- 나만의 선율 만들기 최소 2회 보장 로직 ---
             const remainingSlots = 8 - composedMeasures.length;
             const remainingComposesNeeded = 2 - composeCount;
 
-            // 일반 마디(Array)에 도착했을 때, 남은 칸 수 대비 작곡해야 할 횟수가 부족하면 강제로 COMPOSE(별표) 칸으로 변경합니다.
+            // 일반 마디(Array)에 도착했을 때, 남은 칸 수 대비 작곡해야 할 횟수가 부족하면 강제로 COMPOSE(별표) 칸으로 변경
             if (Array.isArray(data) && remainingSlots <= remainingComposesNeeded) {
                 data = { type: 'COMPOSE' };
             }
 
+            // --- 최종 마디 처리 ---
             if(Array.isArray(data)) {
                 addMeasure(data);
                 playMeasure(data);
-                setMessage(`${cell}번 마디 수집 완료!`);
+                if (wasDuplicateReplaced) {
+                    setMessage(`중복된 선율을 피해 새로운 마디를 수집했습니다!`);
+                } else {
+                    setMessage(`${cell}번 마디 수집 완료!`);
+                }
             } else {
                 switch(data.type) {
                     case 'GO_BACK':
@@ -449,10 +480,11 @@
                             currentPosition = data.target;
                             document.getElementById('pos-display').innerText = currentPosition + "번";
                             setMessage(`${data.target}번으로 돌아갑니다!`);
-                            if(Array.isArray(MEASURE_DATA[data.target])) {
-                                addMeasure(MEASURE_DATA[data.target]);
-                                playMeasure(MEASURE_DATA[data.target]);
-                            }
+                            
+                            // 돌아간 위치의 칸에서도 동일한 마디 수집 및 중복 검사를 진행하도록 재귀 호출
+                            setTimeout(() => {
+                                handleArrival(data.target);
+                            }, 1000);
                         }, 1000);
                         break;
                     case 'SKIP':
