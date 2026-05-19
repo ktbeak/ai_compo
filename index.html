@@ -79,6 +79,29 @@
             transition: all 0.2s ease-in-out;
             z-index: 10;
         }
+
+        /* Range Slider 스타일링 */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-x-auto">
@@ -97,14 +120,13 @@
         <div class="flex-grow flex gap-4 min-h-0">
             
             <!-- 좌측: 컨트롤 및 주사위 (고정 너비) -->
-            <!-- 이 부분의 클래스에 justify-center를 추가하고 내부 래퍼를 제거하여 전체 요소가 중앙에 오도록 수정합니다. -->
             <div class="w-[260px] flex flex-col justify-center gap-4 shrink-0">
                 
                 <!-- 1. 정보 및 현재 위치 -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 shrink-0">
                     <div class="flex items-start gap-2 mb-4">
                         <i data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"></i>
-                        <span id="message-text" class="text-sm font-bold text-slate-700 leading-tight">주사위를 굴려 시작하세요!</span>
+                        <span id="message-text" class="text-sm font-bold text-slate-700 leading-tight">오디오를 준비중입니다...</span>
                     </div>
                     <div class="flex justify-between items-center bg-[#f0faeb] px-4 py-2.5 rounded-xl">
                         <span class="text-xs font-bold text-green-600">현재 위치</span>
@@ -113,22 +135,36 @@
                 </div>
 
                 <!-- 2. 주사위 영역 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center min-h-[280px]">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center min-h-[250px]">
                     <div class="flex gap-4 mb-8" id="dice-wrapper">
                         <!-- 주사위 3개가 자바스크립트로 생성됩니다 -->
                     </div>
-                    <button id="roll-btn" class="w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 bg-[#22c55e] hover:bg-green-500 flex items-center justify-center gap-2">
-                        <i data-lucide="dice-5" class="w-5 h-5"></i>
-                        <span id="roll-btn-text">주사위 굴리기</span>
+                    <button id="roll-btn" disabled class="w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 bg-slate-400 cursor-not-allowed flex items-center justify-center gap-2">
+                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+                        <span id="roll-btn-text">로딩중...</span>
                     </button>
                 </div>
 
                 <!-- 3. 하단 컨트롤 -->
                 <div class="bg-white rounded-[1.25rem] shadow-sm border border-slate-100 p-4 shrink-0 space-y-3">
-                    <button id="play-full-btn" disabled class="w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-[#e2e8f0] cursor-not-allowed text-[15px]">
+                    
+                    <!-- 볼륨 및 연속 재생 옵션 -->
+                    <div class="flex flex-col gap-3 px-2 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="loop-toggle" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
+                            <span class="text-sm font-bold text-slate-700">연속 재생 켜기</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="volume-1" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                            <input type="range" id="volume-slider" min="-30" max="5" value="-5" class="w-full">
+                            <i data-lucide="volume-2" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        </div>
+                    </div>
+
+                    <button id="play-full-btn" disabled class="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-[#e2e8f0] cursor-not-allowed text-[15px]">
                         <i data-lucide="play" class="w-5 h-5"></i> 곡 연주하기
                     </button>
-                    <button id="reset-btn" class="w-full py-4 flex justify-center items-center gap-2 text-slate-600 bg-[#f8fafc] hover:bg-slate-100 rounded-xl transition-colors font-bold text-[15px]">
+                    <button id="reset-btn" class="w-full py-3 flex justify-center items-center gap-2 text-slate-600 bg-[#f8fafc] hover:bg-slate-100 rounded-xl transition-colors font-bold text-[15px]">
                         <i data-lucide="rotate-ccw" class="w-5 h-5"></i> 다시 시작
                     </button>
                 </div>
@@ -177,25 +213,6 @@
         </div>
     </div>
 
-    <!-- 악기 선택 모달 -->
-    <div id="instrument-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[100] p-4">
-        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border-4 border-blue-400">
-            <h2 class="text-2xl font-black text-slate-800 mb-2 flex items-center gap-2">
-                <i data-lucide="volume-2" class="w-6 h-6 text-blue-500"></i> 악기 선택
-            </h2>
-            <p class="text-slate-600 mb-6 font-medium">연주할 악기를 골라주세요.</p>
-            <div class="grid grid-cols-2 gap-3 mb-8" id="instrument-options">
-                <!-- Buttons injected here -->
-            </div>
-            <div class="flex gap-3">
-                <button onclick="toggleModal('instrument-modal', false)" class="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-colors">취소</button>
-                <button id="start-playback-btn" class="flex-[2] py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg transition-colors text-lg flex items-center justify-center gap-2">
-                    <i data-lucide="play" class="w-5 h-5 fill-current"></i> 연주 시작
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // --- 데이터 및 상수 ---
         const MEASURE_DATA = {
@@ -231,41 +248,83 @@
         };
 
         const NOTE_TO_KO = { 'C4': '도', 'D4': '레', 'E4': '미', 'F4': '파', 'G4': '솔', 'A4': '라', 'B4': '시', 'C5': '높은 도', 'REST': '쉼표' };
-        const INSTRUMENTS = {
-            piano: { name: '피아노', synthType: Tone.Synth, options: { oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } } },
-            flute: { name: '플루트', synthType: Tone.Synth, options: { oscillator: { type: "sine" }, envelope: { attack: 0.1, decay: 0.1, sustain: 1, release: 0.5 } } },
-            organ: { name: '오르간', synthType: Tone.FMSynth, options: { harmonicity: 2, modulationIndex: 3, envelope: { attack: 0.01, decay: 0.1, sustain: 0.9, release: 0.5 } } },
-            synth: { name: '신디사이저', synthType: Tone.AMSynth, options: { harmonicity: 2.5, oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 } } },
-            brass: { name: '브라스', synthType: Tone.Synth, options: { oscillator: { type: "sawtooth" }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.6, release: 0.5 } } }
-        };
 
         // --- 앱 상태 ---
         let currentPosition = 0;
         let composedMeasures = [];
         let isRolling = false;
         let skipTurn = false;
-        let selectedInstrument = 'piano';
         let isPlaying = false;
-        let synth = null;
+        let isAudioLoaded = false;
+        
+        let pianoSampler = null;
+        let reverbNode = null;
+        let volNode = null;
         let diceSynth = null;
-        let composeCount = 0; // 나만의 선율 만들기 진행 횟수 추적
-        // 주사위의 누적 회전값을 저장하여 항상 앞으로 굴러가도록 처리
+        
+        let composeCount = 0; 
         let currentRotations = [{x:0, y:0}, {x:0, y:0}, {x:0, y:0}];
+        let glowTimeouts = []; // 연주 도중 중지할 때를 위해 타이머 저장
 
         // --- 초기화 ---
         function init() {
             lucide.createIcons();
             createDice();
-            createInstrumentButtons();
             createComposeSelects();
-            updateSynth();
-            initDiceSynth();
+            initAudio(); // 리얼 피아노 사운드 및 리버브 로드
             
             document.getElementById('roll-btn').addEventListener('click', rollDice);
-            document.getElementById('play-full-btn').addEventListener('click', () => toggleModal('instrument-modal', true));
-            document.getElementById('start-playback-btn').addEventListener('click', playFullSong);
+            document.getElementById('play-full-btn').addEventListener('click', togglePlayStop);
             document.getElementById('confirm-compose-btn').addEventListener('click', submitCustomMeasure);
             document.getElementById('reset-btn').addEventListener('click', resetGame);
+            
+            // 볼륨 슬라이더 이벤트
+            document.getElementById('volume-slider').addEventListener('input', (e) => {
+                if (volNode) volNode.volume.value = e.target.value;
+            });
+        }
+
+        // 실감나는 피아노 및 오디오 환경 구성
+        function initAudio() {
+            // 볼륨 노드 구성
+            volNode = new Tone.Volume(-5).toDestination();
+            
+            // 리버브(잔향) 공간감 보강 (홀 느낌)
+            reverbNode = new Tone.Reverb({
+                decay: 3.5,     // 잔향 길이
+                preDelay: 0.1,
+                wet: 0.35       // 잔향의 믹스 비율
+            }).connect(volNode);
+
+            // 실제 어쿠스틱 피아노 샘플 로드
+            pianoSampler = new Tone.Sampler({
+                urls: {
+                    "C4": "C4.mp3",
+                    "D#4": "Ds4.mp3",
+                    "F#4": "Fs4.mp3",
+                    "A4": "A4.mp3",
+                    "C5": "C5.mp3"
+                },
+                release: 1.5,
+                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                onload: () => {
+                    isAudioLoaded = true;
+                    // 주사위 버튼 활성화
+                    const rollBtn = document.getElementById('roll-btn');
+                    rollBtn.disabled = false;
+                    rollBtn.className = "w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 bg-[#22c55e] hover:bg-green-500 flex items-center justify-center gap-2";
+                    rollBtn.innerHTML = `<i data-lucide="dice-5" class="w-5 h-5"></i><span id="roll-btn-text">주사위 굴리기</span>`;
+                    lucide.createIcons();
+                    setMessage("오디오 준비 완료! 주사위를 굴려 시작하세요!");
+                }
+            }).connect(reverbNode);
+
+            // 주사위 효과음용 심플 신스
+            diceSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "square" },
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
+            }).toDestination();
+            diceSynth.volume.value = -22;
         }
 
         function createDice() {
@@ -287,23 +346,6 @@
             }
         }
 
-        function createInstrumentButtons() {
-            const container = document.getElementById('instrument-options');
-            container.innerHTML = '';
-            Object.entries(INSTRUMENTS).forEach(([key, inst]) => {
-                const btn = document.createElement('button');
-                btn.id = `inst-${key}`;
-                btn.className = `py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2 ${selectedInstrument === key ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-slate-200'}`;
-                btn.innerText = inst.name;
-                btn.onclick = () => {
-                    selectedInstrument = key;
-                    updateSynth();
-                    createInstrumentButtons(); // refresh styles
-                };
-                container.appendChild(btn);
-            });
-        }
-
         function createComposeSelects() {
             const container = document.getElementById('compose-selects');
             container.innerHTML = '';
@@ -320,38 +362,18 @@
             }
         }
 
-        function updateSynth() {
-            if(synth) synth.dispose();
-            const inst = INSTRUMENTS[selectedInstrument];
-            synth = new Tone.PolySynth(inst.synthType, inst.options).toDestination();
-            Tone.Destination.volume.value = -5; // 약간 소리 줄임
-        }
-
-        function initDiceSynth() {
-            // 플라스틱 주사위가 부딪히는 듯한 짧고 타격감 있는 소리 설정
-            diceSynth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "square" },
-                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
-            }).toDestination();
-            diceSynth.volume.value = -22; // 기존 -12에서 -22로 볼륨 대폭 감소
-        }
-
         function startDiceSound() {
-            if(!diceSynth) initDiceSynth();
             let clickCount = 0;
-            let timeBetweenClicks = 50; // 초기 클릭 간격 (빠르게)
+            let timeBetweenClicks = 50; 
             
             function playClick() {
-                if(!isRolling) return; // 굴러가는 상태가 끝나면 소리도 종료
-                
-                // 약간씩 다른 음높이로 부딪히는 느낌 연출
+                if(!isRolling) return; 
                 const notes = ["C5", "C#5", "D5", "D#5", "E5"];
                 const randomNote = notes[Math.floor(Math.random() * notes.length)];
-                diceSynth.triggerAttackRelease(randomNote, "32n");
+                if(diceSynth) diceSynth.triggerAttackRelease(randomNote, "32n");
                 
                 clickCount++;
-                timeBetweenClicks += 3; // 굴러갈수록 점점 느려지는 효과
-                
+                timeBetweenClicks += 3; 
                 setTimeout(playClick, timeBetweenClicks);
             }
             playClick();
@@ -363,9 +385,8 @@
 
         // --- 핵심 로직 ---
         async function rollDice() {
-            if(isRolling || composedMeasures.length >= 8) return;
+            if(isRolling || composedMeasures.length >= 8 || !isAudioLoaded) return;
             
-            // 사용자의 첫 상호작용시 Tone.js AudioContext 시작
             await Tone.start();
 
             if(skipTurn) {
@@ -375,7 +396,7 @@
             }
 
             isRolling = true;
-            startDiceSound(); // 주사위 굴러가는 효과음 시작
+            startDiceSound(); 
 
             const results = [Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1];
             
@@ -391,15 +412,12 @@
                     case 6: targetRx=180; targetRy=0; break;
                 }
                 
-                // 역동적인 회전을 위해 최소 5바퀴 ~ 최대 9바퀴의 무작위 추가 회전을 부여
                 const extraSpinsX = 5 + Math.floor(Math.random() * 5);
                 const extraSpinsY = 5 + Math.floor(Math.random() * 5);
                 
-                // 현재까지의 누적 회전값에 더하여 계속 한 방향으로 구르는 느낌 제공
                 currentRotations[i].x += 360 * extraSpinsX;
                 currentRotations[i].y += 360 * extraSpinsY;
                 
-                // 최종 도달할 X/Y 축 각도
                 const finalRx = currentRotations[i].x + targetRx;
                 const finalRy = currentRotations[i].y + targetRy;
                 
@@ -419,7 +437,7 @@
                 currentPosition = nextPos;
                 document.getElementById('pos-display').innerText = currentPosition + "번";
                 handleArrival(currentPosition);
-            }, 3000); // 늘어난 회전 애니메이션 시간(3초)에 맞춰 타이머 수정
+            }, 3000); 
         }
 
         function handleArrival(cell) {
@@ -431,40 +449,30 @@
 
             let wasDuplicateReplaced = false;
 
-            // --- 중복 멜로디 방지 로직 ---
             if (Array.isArray(data)) {
-                // 현재 수집된 멜로디들과 정확히 동일한 노트 구성을 가졌는지 확인
                 const isDuplicate = composedMeasures.some(m => JSON.stringify(m) === JSON.stringify(data));
-                
                 if (isDuplicate) {
-                    // 전체 데이터 중에서 '배열' 형태인 기본 멜로디들만 필터링
                     const allMelodies = Object.values(MEASURE_DATA).filter(val => Array.isArray(val));
-                    // 그 중에서 아직 내가 수집하지 않은 멜로디만 추려내기
                     const uncollected = allMelodies.filter(mel => 
                         !composedMeasures.some(m => JSON.stringify(m) === JSON.stringify(mel))
                     );
                     
                     if (uncollected.length > 0) {
-                        // 수집하지 않은 멜로디 중 하나를 무작위로 선택하여 교체
                         data = uncollected[Math.floor(Math.random() * uncollected.length)];
                         wasDuplicateReplaced = true;
                     } else {
-                        // 만약 모든 기본 멜로디를 수집했다면 강제로 '나만의 선율 만들기'로 변경
                         data = { type: 'COMPOSE' };
                     }
                 }
             }
 
-            // --- 나만의 선율 만들기 최소 2회 보장 로직 ---
             const remainingSlots = 8 - composedMeasures.length;
             const remainingComposesNeeded = 2 - composeCount;
 
-            // 일반 마디(Array)에 도착했을 때, 남은 칸 수 대비 작곡해야 할 횟수가 부족하면 강제로 COMPOSE(별표) 칸으로 변경
             if (Array.isArray(data) && remainingSlots <= remainingComposesNeeded) {
                 data = { type: 'COMPOSE' };
             }
 
-            // --- 최종 마디 처리 ---
             if(Array.isArray(data)) {
                 addMeasure(data);
                 playMeasure(data);
@@ -480,11 +488,7 @@
                             currentPosition = data.target;
                             document.getElementById('pos-display').innerText = currentPosition + "번";
                             setMessage(`${data.target}번으로 돌아갑니다!`);
-                            
-                            // 돌아간 위치의 칸에서도 동일한 마디 수집 및 중복 검사를 진행하도록 재귀 호출
-                            setTimeout(() => {
-                                handleArrival(data.target);
-                            }, 1000);
+                            setTimeout(() => { handleArrival(data.target); }, 1000);
                         }, 1000);
                         break;
                     case 'SKIP':
@@ -513,7 +517,7 @@
             const measure = Array.from(selects).map(s => ({ note: s.value, duration: '4n' }));
             addMeasure(measure);
             playMeasure(measure);
-            composeCount++; // 선율 만들기 완료 시 횟수 1 증가
+            composeCount++; 
             toggleModal('compose-modal', false);
         }
 
@@ -521,50 +525,86 @@
             await Tone.start();
             let time = Tone.now();
             measure.forEach(obj => {
-                if(obj.note !== 'REST') {
-                    synth.triggerAttackRelease(obj.note, obj.duration, time);
+                if(obj.note !== 'REST' && pianoSampler) {
+                    pianoSampler.triggerAttackRelease(obj.note, obj.duration, time);
                 }
                 time += Tone.Time(obj.duration).toSeconds();
             });
         }
 
-        async function playFullSong() {
-            toggleModal('instrument-modal', false);
-            if(isPlaying || composedMeasures.length === 0) return;
+        // 재생/중지 통합 토글 기능
+        function togglePlayStop() {
+            if (isPlaying) {
+                // 연주 중지 로직
+                isPlaying = false;
+                if(pianoSampler) pianoSampler.releaseAll(); // 피아노 소리 즉시 멈춤
+                glowTimeouts.forEach(clearTimeout); // 예약된 애니메이션 모두 취소
+                glowTimeouts = [];
+                document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+                
+                // UI 복구
+                const btn = document.getElementById('play-full-btn');
+                btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> 곡 연주하기`;
+                btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
+                lucide.createIcons();
+            } else {
+                playSequence();
+            }
+        }
+
+        async function playSequence() {
+            if(composedMeasures.length === 0 || !isAudioLoaded) return;
             isPlaying = true;
             await Tone.start();
             
-            // 기존 글로우 효과 초기화
-            document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+            // 연주 중 상태 UI (중지 버튼으로 변환)
+            const btn = document.getElementById('play-full-btn');
+            btn.innerHTML = `<i data-lucide="square" class="w-5 h-5 fill-current"></i> 연주 중지`;
+            btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-red-500 hover:bg-red-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
+            lucide.createIcons();
             
-            let time = Tone.now() + 0.1; // 약간의 딜레이 후 시작
+            document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+            glowTimeouts = [];
+            
+            let time = Tone.now() + 0.1; 
+            
             composedMeasures.forEach((m, idx) => {
                 const startTimeOffset = (time - Tone.now()) * 1000;
                 
-                // 해당 마디 연주 시작 시간에 맞춰 글로우 효과 부여
-                setTimeout(() => {
+                const glowTimer = setTimeout(() => {
                     document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
                     const el = document.getElementById(`measure-item-${idx}`);
                     if (el) {
                         el.classList.add('playing-glow');
-                        // 연주 중인 오선보가 잘 보이도록 스크롤 이동
                         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 }, startTimeOffset);
+                glowTimeouts.push(glowTimer);
                 
                 m.forEach(obj => {
-                    if(obj.note !== 'REST') {
-                        synth.triggerAttackRelease(obj.note, obj.duration, time);
+                    if(obj.note !== 'REST' && pianoSampler) {
+                        pianoSampler.triggerAttackRelease(obj.note, obj.duration, time);
                     }
                     time += Tone.Time(obj.duration).toSeconds();
                 });
             });
             
-            // 곡 연주가 모두 끝나면 글로우 효과 제거
-            setTimeout(() => {
+            const totalDuration = (time - Tone.now()) * 1000;
+            
+            // 곡이 끝났을 때의 처리 (연속 재생 체크)
+            const endTimer = setTimeout(() => {
                 document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
-                isPlaying = false;
-            }, (time - Tone.now()) * 1000);
+                
+                if (document.getElementById('loop-toggle').checked && isPlaying) {
+                    playSequence(); // 연속 재생
+                } else {
+                    isPlaying = false;
+                    btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> 곡 연주하기`;
+                    btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
+                    lucide.createIcons();
+                }
+            }, totalDuration);
+            glowTimeouts.push(endTimer);
         }
 
         function renderScore() {
@@ -575,12 +615,14 @@
             if(composedMeasures.length >= 8) {
                 const btn = document.getElementById('play-full-btn');
                 btn.disabled = false;
-                btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
+                if(!isPlaying) {
+                    btn.className = "w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all bg-blue-500 hover:bg-blue-600 shadow-md transform hover:scale-[1.02] active:scale-[0.98] text-[15px]";
+                }
             }
 
             composedMeasures.forEach((m, idx) => {
                 const div = document.createElement('div');
-                div.id = `measure-item-${idx}`; // 해당 엘리먼트에 고유 ID 추가
+                div.id = `measure-item-${idx}`; 
                 div.className = "bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:bg-blue-50/50 transition-colors shadow-sm";
                 div.draggable = true;
                 div.dataset.index = idx;
@@ -600,7 +642,6 @@
                     </div>
                 `;
 
-                // Drag and Drop Events
                 div.addEventListener('dragstart', () => div.classList.add('dragging'));
                 div.addEventListener('dragend', () => {
                     div.classList.remove('dragging');
@@ -611,7 +652,6 @@
             });
             lucide.createIcons();
 
-            // 리스트 드래그 오버 로직 적용
             list.addEventListener('dragover', e => {
                 e.preventDefault();
                 const afterElement = getDragAfterElement(list, e.clientY);
@@ -627,7 +667,8 @@
         }
 
         async function playOne(idx) {
-            // 다른 마디의 글로우 효과 제거
+            if(isPlaying) togglePlayStop(); // 전체 연주 중이면 중지
+            
             document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
             
             const el = document.getElementById(`measure-item-${idx}`);
@@ -638,15 +679,14 @@
             let duration = 0;
             
             composedMeasures[idx].forEach(obj => {
-                if(obj.note !== 'REST') {
-                    synth.triggerAttackRelease(obj.note, obj.duration, time);
+                if(obj.note !== 'REST' && pianoSampler) {
+                    pianoSampler.triggerAttackRelease(obj.note, obj.duration, time);
                 }
                 const sec = Tone.Time(obj.duration).toSeconds();
                 time += sec;
                 duration += sec;
             });
             
-            // 해당 마디 재생이 끝나면 글로우 제거
             setTimeout(() => {
                 if (el) el.classList.remove('playing-glow');
             }, duration * 1000);
@@ -661,7 +701,7 @@
                 }
             });
             composedMeasures = newOrder;
-            renderScore(); // 데이터 인덱스 재정렬을 위해 다시 렌더링
+            renderScore(); 
         }
 
         function getDragAfterElement(container, y) {
@@ -682,9 +722,11 @@
         }
 
         function resetGame() {
+            if(isPlaying) togglePlayStop(); // 연주 중이면 중지
+            
             currentPosition = 0;
             composedMeasures = [];
-            composeCount = 0; // 초기화 시 작곡 횟수도 0으로 되돌리기
+            composeCount = 0; 
             skipTurn = false;
             document.getElementById('pos-display').innerText = "출발";
             document.getElementById('score-list').innerHTML = `
