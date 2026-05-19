@@ -66,6 +66,19 @@
 
         /* Drag and Drop Visuals */
         .dragging { opacity: 0.5; transform: scale(0.95); }
+
+        /* 연주 시 깜빡이는 글로우 효과 */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); border-color: #818cf8; }
+            50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.8); border-color: #4f46e5; }
+        }
+        .playing-glow {
+            animation: pulse-glow 1s infinite;
+            background-color: #e0e7ff !important;
+            transform: scale(1.02);
+            transition: all 0.2s ease-in-out;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-x-auto">
@@ -489,8 +502,24 @@
             isPlaying = true;
             await Tone.start();
             
+            // 기존 글로우 효과 초기화
+            document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+            
             let time = Tone.now() + 0.1; // 약간의 딜레이 후 시작
-            composedMeasures.forEach(m => {
+            composedMeasures.forEach((m, idx) => {
+                const startTimeOffset = (time - Tone.now()) * 1000;
+                
+                // 해당 마디 연주 시작 시간에 맞춰 글로우 효과 부여
+                setTimeout(() => {
+                    document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+                    const el = document.getElementById(`measure-item-${idx}`);
+                    if (el) {
+                        el.classList.add('playing-glow');
+                        // 연주 중인 오선보가 잘 보이도록 스크롤 이동
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }, startTimeOffset);
+                
                 m.forEach(obj => {
                     if(obj.note !== 'REST') {
                         synth.triggerAttackRelease(obj.note, obj.duration, time);
@@ -498,7 +527,12 @@
                     time += Tone.Time(obj.duration).toSeconds();
                 });
             });
-            setTimeout(() => isPlaying = false, (time - Tone.now()) * 1000);
+            
+            // 곡 연주가 모두 끝나면 글로우 효과 제거
+            setTimeout(() => {
+                document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+                isPlaying = false;
+            }, (time - Tone.now()) * 1000);
         }
 
         function renderScore() {
@@ -514,6 +548,7 @@
 
             composedMeasures.forEach((m, idx) => {
                 const div = document.createElement('div');
+                div.id = `measure-item-${idx}`; // 해당 엘리먼트에 고유 ID 추가
                 div.className = "bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col gap-2 shrink-0 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:bg-blue-50/50 transition-colors shadow-sm";
                 div.draggable = true;
                 div.dataset.index = idx;
@@ -559,8 +594,30 @@
             });
         }
 
-        function playOne(idx) {
-            playMeasure(composedMeasures[idx]);
+        async function playOne(idx) {
+            // 다른 마디의 글로우 효과 제거
+            document.querySelectorAll('.playing-glow').forEach(el => el.classList.remove('playing-glow'));
+            
+            const el = document.getElementById(`measure-item-${idx}`);
+            if (el) el.classList.add('playing-glow');
+
+            await Tone.start();
+            let time = Tone.now();
+            let duration = 0;
+            
+            composedMeasures[idx].forEach(obj => {
+                if(obj.note !== 'REST') {
+                    synth.triggerAttackRelease(obj.note, obj.duration, time);
+                }
+                const sec = Tone.Time(obj.duration).toSeconds();
+                time += sec;
+                duration += sec;
+            });
+            
+            // 해당 마디 재생이 끝나면 글로우 제거
+            setTimeout(() => {
+                if (el) el.classList.remove('playing-glow');
+            }, duration * 1000);
         }
 
         function reorderMeasures() {
